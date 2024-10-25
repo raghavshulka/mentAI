@@ -1,0 +1,140 @@
+// This is your Prisma schema file,
+// learn more about it in the docs: https://pris.ly/d/prisma-schema
+
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+// Base user table for authentication
+model User {
+  id        Int       @id @default(autoincrement())
+  email     String    @unique
+  password  String
+  name      String
+  role      Role @default(CLIENT)
+  createdAt DateTime  @default(now())
+  
+  // Role-specific profiles
+  therapist Therapist?
+  client    Client?
+  admin     Admin?
+}
+
+// Therapist specific data
+model Therapist {
+  id            Int       @id @default(autoincrement())
+  userId        Int       @unique
+  user          User      @relation(fields: [userId], references: [id])
+  bio           String    @db.Text
+  specialties   String[]
+  education     String
+  experience    Int       // years
+  hourlyRate    Float
+  rating        Float     @default(0)
+  sessions      Session[]
+  isAvailable   Boolean   @default(true)
+  earnings      Float     @default(0)
+}
+
+// Client specific data
+model Client {
+  id              Int       @id @default(autoincrement())
+  userId          Int       @unique
+  user            User      @relation(fields: [userId], references: [id])
+  dateOfBirth     DateTime?
+  medicalHistory  String?   @db.Text
+  bookings        Booking[]
+  groups          Group[]
+}
+
+// Admin specific data
+model Admin {
+  id          Int     @id @default(autoincrement())
+  userId      Int     @unique
+  user        User    @relation(fields: [userId], references: [id])
+}
+
+model Session {
+  id          Int           @id @default(autoincrement())
+  therapistId Int
+  therapist   Therapist     @relation(fields: [therapistId], references: [id])
+  date        DateTime
+  duration    Int           // minutes
+  type        SessionType
+  status      SessionStatus
+  booking     Booking?
+}
+
+model Booking {
+  id          Int          @id @default(autoincrement())
+  sessionId   Int          @unique
+  session     Session      @relation(fields: [sessionId], references: [id])
+  clientId    Int
+  client      Client       @relation(fields: [clientId], references: [id])
+  status      BookingStatus
+  messages    Message[]
+  feedback    Feedback?
+  createdAt   DateTime     @default(now())
+}
+
+model Group {
+  id          Int           @id @default(autoincrement())
+  name        String
+  type        GroupType
+  members     Client[]
+  maxMembers  Int          
+}
+
+model Message {
+  id          Int      @id @default(autoincrement())
+  bookingId   Int
+  booking     Booking  @relation(fields: [bookingId], references: [id])
+  content     String   @db.Text
+  senderId    Int
+  createdAt   DateTime @default(now())
+}
+
+model Feedback {
+  id          Int      @id @default(autoincrement())
+  bookingId   Int      @unique
+  booking     Booking  @relation(fields: [bookingId], references: [id])
+  rating      Int      @db.SmallInt
+  comment     String?  @db.Text
+}
+
+enum Role {
+  THERAPIST
+  CLIENT
+  ADMIN
+}
+
+enum SessionType {
+  VIDEO
+  CHAT
+}
+
+enum SessionStatus {
+  AVAILABLE
+  BOOKED
+  COMPLETED
+  CANCELLED
+}
+
+enum BookingStatus {
+  PENDING
+  CONFIRMED
+  COMPLETED
+  CANCELLED
+}
+
+enum GroupType {
+  ANXIETY
+  DEPRESSION
+  ADDICTION
+  GENERAL
+}
